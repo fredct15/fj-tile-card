@@ -1,4 +1,4 @@
-/* FJ Tile Card v1.0.0 — original standalone Home Assistant Lovelace card — MIT */
+/* FJ Tile Card v1.0.1 — original standalone Home Assistant Lovelace card — MIT */
 (() => {
   const TYPE = 'fj-tile-card';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -36,7 +36,7 @@
       this._key=''; this.render();
     }
     set hass(hass) { this._hass=hass; this.render(); }
-    getCardSize() { return this.config?.layout === 'horizontal' ? 1 : 2; }
+    getCardSize() { return ['horizontal','compact'].includes(this.config?.layout) || this.config?.compact ? 1 : 2; }
     static getConfigElement() { return document.createElement('fj-tile-card-editor'); }
     static getStubConfig(hass) {
       return {entity:Object.keys(hass?.states||{})[0] || 'sensor.temperature', layout:'square', tap_action:'more-info'};
@@ -46,31 +46,36 @@
       const id=this.config.entity, e=this._hass.states[id], s=e?.state||'unavailable';
       const dark = typeof this._hass.themes?.darkMode === 'boolean' ? this._hass.themes.darkMode : window.matchMedia('(prefers-color-scheme: dark)').matches;
       const title=esc(this.config.name || e?.attributes.friendly_name || id);
-      const state=esc(stateText(e,id));
+      const rawState = stateText(e,id);
+      const state = esc(this.config.hide_state ? '' : (this.config.state_content === 'last_changed' && e?.last_changed ? new Date(e.last_changed).toLocaleString('fr-CA') : rawState));
+      const picture = this.config.show_entity_picture && e?.attributes?.entity_picture ? String(e.attributes.entity_picture) : '';
+      const safePicture = picture.startsWith('/') || /^https?:\/\//.test(picture) ? picture : '';
+      const compact = this.config.layout === 'compact' || this.config.compact === true;
+      const vertical = this.config.vertical === true && !compact;
       const icon=esc(this.config.icon || e?.attributes.icon || ({lock:'mdi:lock',light:'mdi:lightbulb',switch:'mdi:toggle-switch',binary_sensor:'mdi:check-circle',sensor:'mdi:gauge',cover:'mdi:garage',person:'mdi:account',camera:'mdi:cctv'})[id.split('.')[0]] || 'mdi:information-outline');
       const active=activeState(e,id);
       const color=this.config.active_color || (dark?'#287D60':'#247155');
       const accent=active?color:(dark?'#AAB1AD':'#555F58');
-      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color]);
+      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options]);
       if (key===this._key) return;
       this._key=key;
-      const horizontal=this.config.layout==='horizontal';
+      const horizontal=this.config.layout==='horizontal' || compact;
       this.shadowRoot.innerHTML=`
         <style>
           :host { display:block; --fj-card:${dark?'#101412':'#FFFFFF'}; --fj-panel:${dark?'#171C19':'#F0F2EF'}; --fj-border:${dark?'#303632':'#DEE4DD'}; --fj-text:${dark?'#FFFFFF':'#202720'}; --fj-muted:${dark?'#AAB1AD':'#555F58'}; --fj-accent:${accent}; }
-          ha-card { background:var(--fj-card);border:1px solid var(--fj-border);border-radius:20px;padding:12px;box-sizing:border-box;color:var(--fj-text);cursor:pointer; }
-          .tile { min-height:${horizontal?'64px':'120px'};border:1px solid var(--fj-border);border-radius:16px;background:var(--fj-panel);
+          ha-card { background:var(--fj-card);border:1px solid var(--fj-border);border-radius:20px;padding:${compact?'0':'12px'};box-sizing:border-box;color:var(--fj-text);cursor:pointer; }
+          .tile { min-height:${compact?'54px':horizontal?'64px':'120px'};border:1px solid var(--fj-border);border-radius:16px;background:var(--fj-panel);
             display:flex;flex-direction:${horizontal?'row':'column'};align-items:center;justify-content:${horizontal?'flex-start':'center'};
-            gap:${horizontal?'12px':'9px'};padding:12px;box-sizing:border-box; }
-          .symbol { background:${dark?'#252B28':'#E3EAE5'};border-radius:50%;width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center; }
-          ha-icon { --mdc-icon-size:23px;color:var(--fj-accent); }
+            gap:${compact?'8px':horizontal?'12px':'9px'};padding:${compact?'7px 9px':'12px'};box-sizing:border-box; }
+          .symbol { background:${dark?'#252B28':'#E3EAE5'};border-radius:50%;width:${compact?'36px':'42px'};height:${compact?'36px':'42px'};flex-shrink:0;display:flex;align-items:center;justify-content:center; }
+          ha-icon { --mdc-icon-size:23px;color:var(--fj-accent); } .avatar{width:100%;height:100%;object-fit:cover;border-radius:50%;}
           .details { min-width:0;text-align:${horizontal?'left':'center'}; }
           .name { font-size:13px;font-weight:700;overflow-wrap:anywhere; }
-          .state { margin-top:5px;font-size:11px;color:var(--fj-accent);font-weight:650;overflow-wrap:anywhere; }
+          .state { margin-top:${compact?'2px':'5px'};font-size:11px;color:var(--fj-accent);font-weight:650;overflow-wrap:anywhere; }
         </style>
         <ha-card tabindex="0" role="button" aria-label="${title}: ${state}">
-          <div class="tile"><div class="symbol"><ha-icon icon="${icon}"></ha-icon></div>
-          <div class="details"><div class="name">${title}</div><div class="state">${state}</div></div></div>
+          <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}</div>
+          <div class="details"><div class="name">${title}</div>${this.config.hide_state ? "" : `<div class="state">${state}</div>`}</div></div>
         </ha-card>`;
       const card=this.shadowRoot.querySelector('ha-card');
       const activate=()=> {
@@ -91,7 +96,7 @@
   if (!customElements.get(TYPE)) customElements.define(TYPE,FJTileCard);
   class FJTileCardEditor extends HTMLElement {
     constructor(){super();this.attachShadow({mode:'open'});this._rendered=false;}
-    setConfig(config){const old=this.config;this.config=config;if(!old||['entity','name','icon','layout','tap_action','active_color'].some(k=>old[k]!==config[k]))this.render();}
+    setConfig(config){const old=this.config;this.config=config;if(!old||['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state','vertical'].some(k=>old[k]!==config[k]))this.render();}
     set hass(hass){this._hass=hass;if(!this._rendered)this.render();}
     render(){
       if(!this.config||!this._hass)return;
@@ -102,15 +107,17 @@
         <label>Entité</label>${select('entity',entities.map(x=>[x,x]),this.config.entity)}
         <label>Nom affiché</label><input id="name" placeholder="Nom de la tuile" value="${esc(this.config.name||'')}">
         <label>Icône (ex. mdi:home)</label><input id="icon" placeholder="Automatique" value="${esc(this.config.icon||'')}">
-        <label>Format</label>${select('layout',[['square','Carré'],['horizontal','Horizontal']],this.config.layout||'square')}
+        <label>Format</label>${select('layout',[['square','Carré'],['horizontal','Horizontal'],['compact','Compact (tuile native)']],this.config.layout||'square')}
+        <label><input type="checkbox" id="show_entity_picture" ${this.config.show_entity_picture?'checked':''} style="width:auto"> Afficher la photo de l'entité</label>
+        <label><input type="checkbox" id="hide_state" ${this.config.hide_state?'checked':''} style="width:auto"> Masquer l'état</label>
         <label>Action au toucher</label>${select('tap_action',[['more-info','Afficher les détails'],['toggle','Basculer (lumières/interrupteurs)'],['none','Aucune']],this.config.tap_action||'more-info')}
         <label>Couleur active (HEX facultatif)</label><input id="active_color" placeholder="#247155" value="${esc(this.config.active_color||'')}">
         <div class="hint">Le thème clair/sombre suit Home Assistant. Les serrures ne sont jamais commandées par cette carte.</div>`;
       this._rendered=true;
-      for(const id of ['entity','name','icon','layout','tap_action','active_color']){
+      for(const id of ['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state']){
         this.shadowRoot.getElementById(id).addEventListener('change',()=>{
           const next={...this.config};
-          for(const key of ['entity','name','icon','layout','tap_action','active_color'])next[key]=this.shadowRoot.getElementById(key).value;
+          for(const key of ['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state'])next[key]=['show_entity_picture','hide_state'].includes(key)?this.shadowRoot.getElementById(key).checked:this.shadowRoot.getElementById(key).value;
           this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:next},bubbles:true,composed:true}));
         });
       }

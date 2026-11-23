@@ -21,6 +21,18 @@ layout: square
 tap_action: more-info
 ```
 
+### Compact — comme une tuile native
+```yaml
+type: custom:fj-tile-card
+entity: person.fred
+name: Fred
+show_entity_picture: true
+layout: compact
+grid_options:
+  columns: 6
+  rows: 1
+```
+
 ### Horizontal
 ```yaml
 type: custom:fj-tile-card
@@ -57,3 +69,6 @@ Une carte affiche une entité. Pour une grille de plusieurs tuiles, utilisez la 
 ## Licence
 
 MIT. Projet original indépendant des autres cartes FJ.
+
+## v1.0.1
+Ajout du format `compact`, de `show_entity_picture`, de `hide_state`, de la prise en charge basique de `state_content: last_changed`, et de champs supplémentaires dans l'éditeur. Les options natives `grid_options` sont conservées pour le tableau de bord. Compatibilité Mushroom/Jinja complète non encore implémentée.

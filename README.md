@@ -104,3 +104,21 @@ Cette version **n'est pas une reproduction complète de Mushroom v5.3.0**. Les f
 - Conservation des résultats de templates entre les changements de configuration et mises à jour Home Assistant.
 - Limitation du débordement du texte secondaire pour préserver la hauteur des tuiles compactes.
 - Syntaxe JavaScript validée; rendu réel dans Home Assistant encore à tester.
+
+## v1.2.2 — couleurs Mushroom et titres compacts
+
+- Les couleurs nommées (`red`, `orange`, `blue`, `pink`, etc.) utilisent les variables RGB du thème Home Assistant/Mushroom avec valeurs de repli. Les couleurs explicites restent appliquées même si l'entité est inactive.
+- Nouvelle option `title_lines: 2` : titre sur deux lignes au maximum dans une tuile compacte de hauteur fixe (54 px). Le texte secondaire reste sur une seule ligne ; selon la longueur du texte, une troncature demeure possible.
+- L'éditeur visuel propose désormais le nombre de lignes du titre.
+
+```yaml
+type: custom:fj-tile-card
+primary: Dividendes AL 💰
+secondary: Lundi 30 Nov. 2026
+icon: mdi:piggy-bank
+color: pink
+layout: compact
+title_lines: 2
+```
+
+Le rendu visuel et les couleurs exactes dépendent du thème Home Assistant ; à valider sur l'installation cible.

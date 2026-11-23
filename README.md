@@ -122,3 +122,23 @@ title_lines: 2
 ```
 
 Le rendu visuel et les couleurs exactes dépendent du thème Home Assistant ; à valider sur l'installation cible.
+
+## v1.2.4 — raccourcis et recherche d'entités
+
+- Le champ **Entité** de l'éditeur visuel utilise maintenant le sélecteur Home Assistant avec recherche par nom ou identifiant ; l'entité est facultative.
+- Actions **Naviguer vers une page** et **Ouvrir une URL**, configurables dans l'éditeur visuel avec un champ Destination.
+- Les actions YAML `tap_action: {action: navigate, navigation_path: /dashboard-v3/securite}` et `tap_action: {action: url, url_path: https://example.com}` sont prises en charge.
+
+```yaml
+type: custom:fj-tile-card
+primary: Caméras
+secondary: Voir les caméras
+icon: mdi:cctv
+color: blue
+layout: compact
+tap_action:
+  action: navigate
+  navigation_path: /dashboard-v3/cameras
+```
+
+Le chemin doit correspondre à une page existante de votre tableau de bord. Les changements de configuration sont à tester dans l'éditeur Home Assistant.

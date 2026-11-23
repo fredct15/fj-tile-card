@@ -1,4 +1,4 @@
-/* FJ Tile Card v1.2.3 — original standalone Home Assistant Lovelace card — MIT */
+/* FJ Tile Card v1.2.4 — original standalone Home Assistant Lovelace card — MIT */
 (() => {
   const TYPE = 'fj-tile-card';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -118,15 +118,27 @@
         </ha-card>`;
       const card=this.shadowRoot.querySelector('ha-card');
       const activate=()=> {
-        if (this.config.tap_action === 'none') return;
-        if (this.config.tap_action === 'toggle') {
-          const domain=id.split('.')[0];
-          if (['switch','light','input_boolean','fan'].includes(domain)) {
-            this._hass.callService(domain,'toggle',{entity_id:id}).catch(err=>console.error('FJ Tile Card:',err));
-          }
+        const action=typeof this.config.tap_action==='object' ? this.config.tap_action : {action:this.config.tap_action||'more-info'};
+        const type=action.action||'more-info';
+        if(type==='none')return;
+        if(type==='navigate'){
+          const destination=action.navigation_path||this.config.navigation_path||'';
+          if(!destination)return;
+          history.pushState(null,'',destination);
+          window.dispatchEvent(new Event('location-changed'));
           return;
         }
-        this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:id},bubbles:true,composed:true}));
+        if(type==='url'){
+          const destination=action.url_path||this.config.url_path||'';
+          if(destination && /^(https?:\\/\\/|\\/)/i.test(destination))window.open(destination,'_blank','noopener,noreferrer');
+          return;
+        }
+        if(type==='toggle'){
+          const domain=id.split('.')[0];
+          if(id && ['switch','light','input_boolean','fan'].includes(domain))this._hass.callService(domain,'toggle',{entity_id:id}).catch(err=>console.error('FJ Tile Card:',err));
+          return;
+        }
+        if(type==='more-info' && id)this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:id},bubbles:true,composed:true}));
       };
       card.addEventListener('click',activate);
       card.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();activate();}});
@@ -136,30 +148,50 @@
   class FJTileCardEditor extends HTMLElement {
     constructor(){super();this.attachShadow({mode:'open'});this._rendered=false;}
     setConfig(config){const old=this.config;this.config=config;if(!old||['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state','vertical','title_lines','color','secondary','primary'].some(k=>old[k]!==config[k]))this.render();}
-    set hass(hass){this._hass=hass;if(!this._rendered)this.render();}
+    set hass(hass){this._hass=hass;if(!this._rendered)this.render();else {const picker=this.shadowRoot.getElementById('entity');if(picker)picker.hass=hass;}}
     render(){
       if(!this.config||!this._hass)return;
       const entities=Object.keys(this._hass.states).sort();
       const select=(id,values,current)=>'<select id="'+id+'">'+values.map(([v,label])=>'<option value="'+esc(v)+'" '+(v===current?'selected':'')+'>'+esc(label)+'</option>').join('')+'</select>';
       this.shadowRoot.innerHTML=`
         <style>label{display:block;margin:10px 0 5px;font-weight:600}input,select{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #888} .hint{font-size:12px;opacity:.7;margin-top:6px}</style>
-        <label>Entité</label>${select('entity',entities.map(x=>[x,x]),this.config.entity)}
+        <label>Entité (facultative)</label><ha-entity-picker id="entity" allow-custom-entity></ha-entity-picker>
+        <div class="hint">Tapez un nom ou un identifiant pour rechercher une entité.</div>
         <label>Nom affiché / primary</label><input id="name" placeholder="Nom de la tuile" value="${esc(this.config.name||'')}">
         <label>Texte secondaire / secondary</label><input id="secondary" value="${esc(this.config.secondary||'')}" placeholder="État automatique"><label>Couleur / color</label><input id="color" value="${esc(this.config.color||'')}" placeholder="green, orange, #287D60"><label>Icône (ex. mdi:home)</label><input id="icon" placeholder="Automatique" value="${esc(this.config.icon||'')}">
         <label>Lignes du titre</label>${select('title_lines',[['1','Une ligne'],['2','Deux lignes (hauteur fixe)']],String(this.config.title_lines||1))}
         <label>Format</label>${select('layout',[['square','Carré'],['horizontal','Horizontal'],['compact','Compact (tuile native)']],this.config.layout||'square')}
         <label><input type="checkbox" id="show_entity_picture" ${this.config.show_entity_picture?'checked':''} style="width:auto"> Afficher la photo de l'entité</label>
         <label><input type="checkbox" id="hide_state" ${this.config.hide_state?'checked':''} style="width:auto"> Masquer l'état</label>
-        <label>Action au toucher</label>${select('tap_action',[['more-info','Afficher les détails'],['toggle','Basculer (lumières/interrupteurs)'],['none','Aucune']],this.config.tap_action||'more-info')}
+        <label>Action au toucher</label>${select('tap_action',[['more-info','Afficher les détails'],['navigate','Naviguer vers une page'],['url','Ouvrir une URL'],['toggle','Basculer (lumières/interrupteurs)'],['none','Aucune']],typeof this.config.tap_action==='object'?this.config.tap_action.action:this.config.tap_action||'more-info')}
+        <label>Destination (chemin Dashboard ou URL)</label><input id="destination" placeholder="/dashboard-v3/securite" value="${esc((typeof this.config.tap_action==='object'?(this.config.tap_action.navigation_path||this.config.tap_action.url_path):'')||this.config.navigation_path||this.config.url_path||'')}">
+        <div class="hint">Pour Naviguer : /dashboard-v3/securite. Pour URL : https://exemple.com</div>
         <label>Couleur active (HEX facultatif)</label><input id="active_color" placeholder="#247155" value="${esc(this.config.active_color||'')}">
         <div class="hint">Le thème clair/sombre suit Home Assistant. Les serrures ne sont jamais commandées par cette carte.</div>`;
       this._rendered=true;
-      for(const id of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state','title_lines']){
-        this.shadowRoot.getElementById(id).addEventListener('change',()=>{
-          const next={...this.config};
-          for(const key of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state','title_lines'])next[key]=['show_entity_picture','hide_state'].includes(key)?this.shadowRoot.getElementById(key).checked:(key==='title_lines'?Number(this.shadowRoot.getElementById(key).value):this.shadowRoot.getElementById(key).value);
-          this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:next},bubbles:true,composed:true}));
-        });
+      const picker=this.shadowRoot.getElementById('entity');
+      picker.hass=this._hass;
+      picker.value=this.config.entity||'';
+      const update=()=>{
+        const next={...this.config};
+        const fields=['name','secondary','color','icon','layout','active_color','show_entity_picture','hide_state','title_lines'];
+        next.entity=picker.value||undefined;
+        if(!next.entity)delete next.entity;
+        for(const key of fields){
+          const el=this.shadowRoot.getElementById(key);
+          next[key]=['show_entity_picture','hide_state'].includes(key)?el.checked:(key==='title_lines'?Number(el.value):el.value);
+        }
+        const action=this.shadowRoot.getElementById('tap_action').value;
+        const destination=this.shadowRoot.getElementById('destination').value.trim();
+        if(action==='navigate')next.tap_action={action,navigation_path:destination};
+        else if(action==='url')next.tap_action={action,url_path:destination};
+        else next.tap_action=action;
+        this.config=next;
+        this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:next},bubbles:true,composed:true}));
+      };
+      picker.addEventListener('value-changed',update);
+      for(const key of ['name','secondary','color','icon','layout','active_color','show_entity_picture','hide_state','title_lines','tap_action','destination']){
+        this.shadowRoot.getElementById(key).addEventListener('change',update);
       }
     }
   }

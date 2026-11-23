@@ -72,3 +72,28 @@ MIT. Projet original indépendant des autres cartes FJ.
 
 ## v1.0.1
 Ajout du format `compact`, de `show_entity_picture`, de `hide_state`, de la prise en charge basique de `state_content: last_changed`, et de champs supplémentaires dans l'éditeur. Les options natives `grid_options` sont conservées pour le tableau de bord. Compatibilité Mushroom/Jinja complète non encore implémentée.
+
+## v1.2.0 — nouveautés
+
+- Tuiles compactes : avatar de 40 px, texte principal de 14 px et secondaire de 12 px.
+- Badges de présence sur les entités `person.*` : maison verte si à domicile, badge bleu ailleurs.
+- Traduction de `home` en **Maison** et `not_home` en **Absent**; nom de zone quand disponible.
+- Entité facultative pour une tuile informative.
+- Propriétés `primary`, `secondary`, `color`, `icon_color` et `badge_icon`.
+- Templates Jinja dans `primary`, `secondary`, `icon`, `color`, `badge_icon`, `badge_color`, rendus par le moteur Home Assistant via `render_template`.
+- Éditeur visuel enrichi (texte secondaire et couleur).
+
+### Exemple de tuile informative
+
+```yaml
+type: custom:fj-tile-card
+primary: Encombrants
+secondary: "{{ states('sensor.prochain_encombrants') }}"
+icon: mdi:package-variant
+color: orange
+layout: compact
+```
+
+### Limites actuelles
+
+Cette version **n'est pas une reproduction complète de Mushroom v5.3.0**. Les fonctionnalités (`features`) natives, les actions avancées (maintien, double-clic, navigation, service), les images/badges dynamiques avancés et tous les réglages de l'éditeur Mushroom ne sont pas encore intégrés. `grid_options` reste géré par le tableau de bord Home Assistant. La compatibilité doit être testée sur Home Assistant.

@@ -1,4 +1,4 @@
-/* FJ Tile Card v1.2.2 — original standalone Home Assistant Lovelace card — MIT */
+/* FJ Tile Card v1.2.3 — original standalone Home Assistant Lovelace card — MIT */
 (() => {
   const TYPE = 'fj-tile-card';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -113,7 +113,7 @@
           .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .details{flex:1;min-width:0}.name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${titleLines};line-clamp:${titleLines};white-space:normal;overflow:hidden;text-overflow:ellipsis}
         </style>
         <ha-card tabindex="0" role="button" aria-label="${title}: ${state}">
-          <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${id.startsWith('person.')?`<span class="fj-badge"><ha-icon icon="${esc(this._value('badge_icon',(s==='home'?'mdi:home':'mdi:map-marker')))}"></ha-icon></span>`:''}</div>
+          <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${(id.startsWith('person.')||id.startsWith('device_tracker.'))?`<span class="fj-badge"><ha-icon icon="${esc(this._value('badge_icon',(s==='home'?'mdi:home':'mdi:map-marker')))}"></ha-icon></span>`:''}</div>
           <div class="details"><div class="name">${title}</div>${this.config.hide_state ? "" : `<div class="state">${state}</div>`}</div></div>
         </ha-card>`;
       const card=this.shadowRoot.querySelector('ha-card');

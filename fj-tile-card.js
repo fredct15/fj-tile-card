@@ -130,7 +130,7 @@
         }
         if(type==='url'){
           const destination=action.url_path||this.config.url_path||'';
-          if(destination && /^(https?:\\/\\/|\\/)/i.test(destination))window.open(destination,'_blank','noopener,noreferrer');
+          if(destination && (destination.startsWith('https://')||destination.startsWith('http://')||destination.startsWith('/')))window.open(destination,'_blank','noopener,noreferrer');
           return;
         }
         if(type==='toggle'){

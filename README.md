@@ -97,3 +97,10 @@ layout: compact
 ### Limites actuelles
 
 Cette version **n'est pas une reproduction complète de Mushroom v5.3.0**. Les fonctionnalités (`features`) natives, les actions avancées (maintien, double-clic, navigation, service), les images/badges dynamiques avancés et tous les réglages de l'éditeur Mushroom ne sont pas encore intégrés. `grid_options` reste géré par le tableau de bord Home Assistant. La compatibilité doit être testée sur Home Assistant.
+
+## v1.2.1 — correctifs
+- Traduction des états `device_tracker` (`home` → Maison, `not_home` → Absent).
+- Affichage « Chargement… » pendant le rendu des templates Jinja, plutôt que d'afficher leur code brut.
+- Conservation des résultats de templates entre les changements de configuration et mises à jour Home Assistant.
+- Limitation du débordement du texte secondaire pour préserver la hauteur des tuiles compactes.
+- Syntaxe JavaScript validée; rendu réel dans Home Assistant encore à tester.

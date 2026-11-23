@@ -1,4 +1,4 @@
-/* FJ Tile Card v1.2.1 — original standalone Home Assistant Lovelace card — MIT */
+/* FJ Tile Card v1.2.2 — original standalone Home Assistant Lovelace card — MIT */
 (() => {
   const TYPE = 'fj-tile-card';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -72,9 +72,30 @@
       const vertical = this.config.vertical === true && !compact;
       const icon=esc(this._value('icon',e?.attributes.icon) || ({lock:'mdi:lock',light:'mdi:lightbulb',switch:'mdi:toggle-switch',binary_sensor:'mdi:check-circle',sensor:'mdi:gauge',cover:'mdi:garage',person:'mdi:account',camera:'mdi:cctv'})[id.split('.')[0]] || 'mdi:information-outline');
       const active=activeState(e,id);
-      const palette={green:dark?'#287D60':'#247155',orange:'#E99B30',red:'#D74F4F',blue:'#1E88E5',yellow:'#D6AD29',purple:'#9C70DA'};const chosen=this._value('color',this.config.icon_color||this.config.active_color);const color=palette[chosen]||chosen||(dark?'#287D60':'#247155');
-      const accent=chosen?color:(active||!id?color:(dark?'#AAB1AD':'#555F58'));
-      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options,this.config.primary,this.config.secondary,this.config.badge_icon,this.config.badge_color,this.config.color,this._tpl]);
+      // Mushroom-style palette: use Home Assistant RGB theme variables when available.
+      // Named colors are explicit even for inactive entities.
+      const mushroomColors={
+        red:'rgb(var(--rgb-red, 244, 67, 54))',
+        orange:'rgb(var(--rgb-orange, 255, 152, 0))',
+        yellow:'rgb(var(--rgb-yellow, 255, 193, 7))',
+        green:'rgb(var(--rgb-green, 76, 175, 80))',
+        blue:'rgb(var(--rgb-blue, 33, 150, 243))',
+        purple:'rgb(var(--rgb-purple, 156, 39, 176))',
+        pink:'rgb(var(--rgb-pink, 233, 30, 99))',
+        teal:'rgb(var(--rgb-teal, 0, 150, 136))',
+        cyan:'rgb(var(--rgb-cyan, 0, 188, 212))',
+        indigo:'rgb(var(--rgb-indigo, 63, 81, 181))',
+        grey:'rgb(var(--rgb-grey, 158, 158, 158))',
+        gray:'rgb(var(--rgb-grey, 158, 158, 158))',
+        black:'rgb(var(--rgb-black, 0, 0, 0))',
+        white:'rgb(var(--rgb-white, 255, 255, 255))'
+      };
+      const chosen=this._value('color',this.config.icon_color||this.config.active_color);
+      const chosenKey=String(chosen||'').trim().toLowerCase();
+      const color=mushroomColors[chosenKey]||(/^#[0-9a-f]{3,8}$/i.test(chosenKey)?chosenKey:null)||(dark?'#287D60':'#247155');
+      const accent=chosenKey?color:(active||!id?color:(dark?'#AAB1AD':'#555F58'));
+      const titleLines=this.config.title_lines===2?2:1;
+      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options,this.config.primary,this.config.secondary,this.config.badge_icon,this.config.badge_color,this.config.color,this.config.title_lines,this._tpl]);
       if (key===this._key) return;
       this._key=key;
       const horizontal=this.config.layout==='horizontal' || compact;
@@ -82,14 +103,14 @@
         <style>
           :host { display:block; --fj-card:${dark?'#101412':'#FFFFFF'}; --fj-panel:${dark?'#171C19':'#F0F2EF'}; --fj-border:${dark?'#303632':'#DEE4DD'}; --fj-text:${dark?'#FFFFFF':'#202720'}; --fj-muted:${dark?'#AAB1AD':'#555F58'}; --fj-accent:${accent}; }
           ha-card { background:var(--fj-card);border:1px solid var(--fj-border);border-radius:20px;padding:${compact?'0':'12px'};box-sizing:border-box;color:var(--fj-text);cursor:pointer; }
-          .tile { min-height:${compact?'54px':horizontal?'64px':'120px'};border:1px solid var(--fj-border);border-radius:16px;background:var(--fj-panel);
+          .tile { height:${compact?'54px':'auto'};min-height:${compact?'54px':horizontal?'64px':'120px'};border:1px solid var(--fj-border);border-radius:16px;background:var(--fj-panel);
             display:flex;flex-direction:${horizontal?'row':'column'};align-items:center;justify-content:${horizontal?'flex-start':'center'};
-            gap:${compact?'8px':horizontal?'12px':'9px'};padding:${compact?'7px 9px':'12px'};box-sizing:border-box; }
+            gap:${compact?'8px':horizontal?'12px':'9px'};padding:${compact?'5px 9px':'12px'};box-sizing:border-box; }
           .symbol { background:${dark?'#252B28':'#E3EAE5'};border-radius:50%;width:${compact?'40px':'42px'};height:${compact?'40px':'42px'};flex-shrink:0;display:flex;align-items:center;justify-content:center; }
           ha-icon { --mdc-icon-size:23px;color:var(--fj-accent); } .symbol{position:relative}.fj-badge{position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:${s==='home'?'#39A854':'#2685CA'};border:2px solid var(--fj-panel);box-sizing:border-box;display:flex;align-items:center;justify-content:center}.fj-badge ha-icon{--mdc-icon-size:11px;color:white} .avatar{width:100%;height:100%;object-fit:cover;border-radius:50%;}
           .details { min-width:0;text-align:${horizontal?'left':'center'}; }
-          .name { font-size:14px;font-weight:700;overflow-wrap:anywhere; }
-          .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .details{flex:1;min-width:0}.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+          .name { font-size:14px;font-weight:700;overflow-wrap:anywhere;line-height:17px; }
+          .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .details{flex:1;min-width:0}.name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${titleLines};line-clamp:${titleLines};white-space:normal;overflow:hidden;text-overflow:ellipsis}
         </style>
         <ha-card tabindex="0" role="button" aria-label="${title}: ${state}">
           <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${id.startsWith('person.')?`<span class="fj-badge"><ha-icon icon="${esc(this._value('badge_icon',(s==='home'?'mdi:home':'mdi:map-marker')))}"></ha-icon></span>`:''}</div>
@@ -114,7 +135,7 @@
   if (!customElements.get(TYPE)) customElements.define(TYPE,FJTileCard);
   class FJTileCardEditor extends HTMLElement {
     constructor(){super();this.attachShadow({mode:'open'});this._rendered=false;}
-    setConfig(config){const old=this.config;this.config=config;if(!old||['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state','vertical'].some(k=>old[k]!==config[k]))this.render();}
+    setConfig(config){const old=this.config;this.config=config;if(!old||['entity','name','icon','layout','tap_action','active_color','show_entity_picture','hide_state','vertical','title_lines','color','secondary','primary'].some(k=>old[k]!==config[k]))this.render();}
     set hass(hass){this._hass=hass;if(!this._rendered)this.render();}
     render(){
       if(!this.config||!this._hass)return;
@@ -125,6 +146,7 @@
         <label>Entité</label>${select('entity',entities.map(x=>[x,x]),this.config.entity)}
         <label>Nom affiché / primary</label><input id="name" placeholder="Nom de la tuile" value="${esc(this.config.name||'')}">
         <label>Texte secondaire / secondary</label><input id="secondary" value="${esc(this.config.secondary||'')}" placeholder="État automatique"><label>Couleur / color</label><input id="color" value="${esc(this.config.color||'')}" placeholder="green, orange, #287D60"><label>Icône (ex. mdi:home)</label><input id="icon" placeholder="Automatique" value="${esc(this.config.icon||'')}">
+        <label>Lignes du titre</label>${select('title_lines',[['1','Une ligne'],['2','Deux lignes (hauteur fixe)']],String(this.config.title_lines||1))}
         <label>Format</label>${select('layout',[['square','Carré'],['horizontal','Horizontal'],['compact','Compact (tuile native)']],this.config.layout||'square')}
         <label><input type="checkbox" id="show_entity_picture" ${this.config.show_entity_picture?'checked':''} style="width:auto"> Afficher la photo de l'entité</label>
         <label><input type="checkbox" id="hide_state" ${this.config.hide_state?'checked':''} style="width:auto"> Masquer l'état</label>
@@ -132,10 +154,10 @@
         <label>Couleur active (HEX facultatif)</label><input id="active_color" placeholder="#247155" value="${esc(this.config.active_color||'')}">
         <div class="hint">Le thème clair/sombre suit Home Assistant. Les serrures ne sont jamais commandées par cette carte.</div>`;
       this._rendered=true;
-      for(const id of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state']){
+      for(const id of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state','title_lines']){
         this.shadowRoot.getElementById(id).addEventListener('change',()=>{
           const next={...this.config};
-          for(const key of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state'])next[key]=['show_entity_picture','hide_state'].includes(key)?this.shadowRoot.getElementById(key).checked:this.shadowRoot.getElementById(key).value;
+          for(const key of ['entity','name','secondary','color','icon','layout','tap_action','active_color','show_entity_picture','hide_state','title_lines'])next[key]=['show_entity_picture','hide_state'].includes(key)?this.shadowRoot.getElementById(key).checked:(key==='title_lines'?Number(this.shadowRoot.getElementById(key).value):this.shadowRoot.getElementById(key).value);
           this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:next},bubbles:true,composed:true}));
         });
       }

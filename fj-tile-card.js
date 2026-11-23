@@ -1,4 +1,4 @@
-/* FJ Tile Card v1.2.0 — original standalone Home Assistant Lovelace card — MIT */
+/* FJ Tile Card v1.2.1 — original standalone Home Assistant Lovelace card — MIT */
 (() => {
   const TYPE = 'fj-tile-card';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -40,20 +40,20 @@
     disconnectedCallback(){this._generation++;this._unsubs.splice(0).forEach(fn=>fn());}
     _setupTemplates(){
       this._generation++;const generation=this._generation;
-      this._unsubs.splice(0).forEach(fn=>fn());this._tpl={};
+      this._unsubs.splice(0).forEach(fn=>fn());
       if(!this.isConnected||!this._hass?.connection?.subscribeMessage||!this.config)return;
       for(const field of ['primary','secondary','icon','color','badge_icon','badge_color']){
         const value=this.config[field];
         if(typeof value!=='string'||(!value.includes('{{')&&!value.includes('{%')))continue;
         this._hass.connection.subscribeMessage(message=>{
           if(generation!==this._generation)return;
-          this._tpl[field]=message.result??'';this._key='';this.render();
-        },{type:'render_template',template:value,variables:{config:this.config}})
+          this._tpl[field]=typeof message.result==='string'?message.result:(message.result?.result??'');this._key='';this.render();
+        },{type:'render_template',template:value,variables:{config:{entity:this.config.entity||''}}})
           .then(unsub=>{if(generation===this._generation)this._unsubs.push(unsub);else unsub();})
           .catch(err=>console.warn('FJ Tile template:',err));
       }
     }
-    _value(field,fallback){const v=this.config[field];return typeof v==='string'&&(v.includes('{{')||v.includes('{%'))?(this._tpl[field]??fallback):(v??fallback);}
+    _value(field,fallback){const v=this.config[field];return typeof v==='string'&&(v.includes('{{')||v.includes('{%'))?(this._tpl[field]??'Chargement…'):(v??fallback);}
     getCardSize() { return ['horizontal','compact'].includes(this.config?.layout) || this.config?.compact ? 1 : 2; }
     static getConfigElement() { return document.createElement('fj-tile-card-editor'); }
     static getStubConfig(hass) {
@@ -64,7 +64,7 @@
       const id=this.config.entity||'', e=this._hass.states[id], s=e?.state||'unavailable';
       const dark = typeof this._hass.themes?.darkMode === 'boolean' ? this._hass.themes.darkMode : window.matchMedia('(prefers-color-scheme: dark)').matches;
       const title=esc(this._value('primary',this.config.name) || e?.attributes.friendly_name || id || 'Tuile FJ');
-      const rawState = id.startsWith('person.') ? (s==='home'?'Maison':s==='not_home'?'Absent':this._hass.states['zone.'+s]?.attributes?.friendly_name||s) : stateText(e,id);
+      const rawState = (id.startsWith('person.') || id.startsWith('device_tracker.')) ? (s==='home'?'Maison':s==='not_home'?'Absent':this._hass.states['zone.'+s]?.attributes?.friendly_name||s) : stateText(e,id);
       const state = esc(this._value('secondary', (this.config.hide_state ? '' : (this.config.state_content === 'last_changed' && e?.last_changed ? new Date(e.last_changed).toLocaleString('fr-CA') : rawState))));
       const picture = this.config.show_entity_picture && e?.attributes?.entity_picture ? String(e.attributes.entity_picture) : '';
       const safePicture = picture.startsWith('/') || /^https?:\/\//.test(picture) ? picture : '';
@@ -73,8 +73,8 @@
       const icon=esc(this._value('icon',e?.attributes.icon) || ({lock:'mdi:lock',light:'mdi:lightbulb',switch:'mdi:toggle-switch',binary_sensor:'mdi:check-circle',sensor:'mdi:gauge',cover:'mdi:garage',person:'mdi:account',camera:'mdi:cctv'})[id.split('.')[0]] || 'mdi:information-outline');
       const active=activeState(e,id);
       const palette={green:dark?'#287D60':'#247155',orange:'#E99B30',red:'#D74F4F',blue:'#1E88E5',yellow:'#D6AD29',purple:'#9C70DA'};const chosen=this._value('color',this.config.icon_color||this.config.active_color);const color=palette[chosen]||chosen||(dark?'#287D60':'#247155');
-      const accent=active||!id||chosen?color:(dark?'#AAB1AD':'#555F58');
-      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options,this.config.primary,this.config.secondary,this.config.badge_icon,this.config.badge_color,this.config.color]);
+      const accent=chosen?color:(active||!id?color:(dark?'#AAB1AD':'#555F58'));
+      const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options,this.config.primary,this.config.secondary,this.config.badge_icon,this.config.badge_color,this.config.color,this._tpl]);
       if (key===this._key) return;
       this._key=key;
       const horizontal=this.config.layout==='horizontal' || compact;
@@ -89,7 +89,7 @@
           ha-icon { --mdc-icon-size:23px;color:var(--fj-accent); } .symbol{position:relative}.fj-badge{position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:${s==='home'?'#39A854':'#2685CA'};border:2px solid var(--fj-panel);box-sizing:border-box;display:flex;align-items:center;justify-content:center}.fj-badge ha-icon{--mdc-icon-size:11px;color:white} .avatar{width:100%;height:100%;object-fit:cover;border-radius:50%;}
           .details { min-width:0;text-align:${horizontal?'left':'center'}; }
           .name { font-size:14px;font-weight:700;overflow-wrap:anywhere; }
-          .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow-wrap:anywhere; }
+          .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .details{flex:1;min-width:0}.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         </style>
         <ha-card tabindex="0" role="button" aria-label="${title}: ${state}">
           <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${id.startsWith('person.')?`<span class="fj-badge"><ha-icon icon="${esc(this._value('badge_icon',(s==='home'?'mdi:home':'mdi:map-marker')))}"></ha-icon></span>`:''}</div>

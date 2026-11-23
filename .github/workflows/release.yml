@@ -1,0 +1,30 @@
+name: Publish HACS release
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fj-tile-card.js'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(sed -nE '1s/.*(v[0-9]+\.[0-9]+\.[0-9]+).*/\1/p' fj-tile-card.js)
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then exit 1; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if ! gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release create "$VERSION" fj-tile-card.js --target "$GITHUB_SHA" --title "FJ Tile Card $VERSION" --notes "Version $VERSION pour HACS."
+          fi

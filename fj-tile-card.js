@@ -29,13 +29,31 @@
     return entity.state === 'on';
   };
   class FJTileCard extends HTMLElement {
-    constructor() { super(); this.attachShadow({mode:'open'}); this._key=''; }
+    constructor() { super(); this.attachShadow({mode:'open'}); this._key=''; this._tpl={}; this._unsubs=[]; this._generation=0; }
     setConfig(config) {
       if (config.entity && !config.entity.includes('.')) throw Error('Entité Home Assistant invalide.');
       this.config = {layout:'compact', tap_action:'more-info', ...config};
-      this._key=''; this.render();
+      this._key=''; this._setupTemplates(); this.render();
     }
-    set hass(hass) { this._hass=hass; this.render(); }
+    set hass(hass) { const changed=this._hass?.connection!==hass?.connection; this._hass=hass; if(changed)this._setupTemplates(); this.render(); }
+    connectedCallback(){this._setupTemplates();}
+    disconnectedCallback(){this._generation++;this._unsubs.splice(0).forEach(fn=>fn());}
+    _setupTemplates(){
+      this._generation++;const generation=this._generation;
+      this._unsubs.splice(0).forEach(fn=>fn());this._tpl={};
+      if(!this.isConnected||!this._hass?.connection?.subscribeMessage||!this.config)return;
+      for(const field of ['primary','secondary','icon','color','badge_icon','badge_color']){
+        const value=this.config[field];
+        if(typeof value!=='string'||(!value.includes('{{')&&!value.includes('{%')))continue;
+        this._hass.connection.subscribeMessage(message=>{
+          if(generation!==this._generation)return;
+          this._tpl[field]=message.result??'';this._key='';this.render();
+        },{type:'render_template',template:value,variables:{config:this.config}})
+          .then(unsub=>{if(generation===this._generation)this._unsubs.push(unsub);else unsub();})
+          .catch(err=>console.warn('FJ Tile template:',err));
+      }
+    }
+    _value(field,fallback){const v=this.config[field];return typeof v==='string'&&(v.includes('{{')||v.includes('{%'))?(this._tpl[field]??fallback):(v??fallback);}
     getCardSize() { return ['horizontal','compact'].includes(this.config?.layout) || this.config?.compact ? 1 : 2; }
     static getConfigElement() { return document.createElement('fj-tile-card-editor'); }
     static getStubConfig(hass) {
@@ -45,16 +63,16 @@
       if (!this.config || !this._hass) return;
       const id=this.config.entity||'', e=this._hass.states[id], s=e?.state||'unavailable';
       const dark = typeof this._hass.themes?.darkMode === 'boolean' ? this._hass.themes.darkMode : window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const title=esc(this.config.primary || this.config.name || e?.attributes.friendly_name || id || 'Tuile FJ');
+      const title=esc(this._value('primary',this.config.name) || e?.attributes.friendly_name || id || 'Tuile FJ');
       const rawState = id.startsWith('person.') ? (s==='home'?'Maison':s==='not_home'?'Absent':this._hass.states['zone.'+s]?.attributes?.friendly_name||s) : stateText(e,id);
-      const state = esc(this.config.secondary ?? (this.config.hide_state ? '' : (this.config.state_content === 'last_changed' && e?.last_changed ? new Date(e.last_changed).toLocaleString('fr-CA') : rawState)));
+      const state = esc(this._value('secondary', (this.config.hide_state ? '' : (this.config.state_content === 'last_changed' && e?.last_changed ? new Date(e.last_changed).toLocaleString('fr-CA') : rawState))));
       const picture = this.config.show_entity_picture && e?.attributes?.entity_picture ? String(e.attributes.entity_picture) : '';
       const safePicture = picture.startsWith('/') || /^https?:\/\//.test(picture) ? picture : '';
       const compact = this.config.layout === 'compact' || this.config.compact === true;
       const vertical = this.config.vertical === true && !compact;
-      const icon=esc(this.config.icon || e?.attributes.icon || ({lock:'mdi:lock',light:'mdi:lightbulb',switch:'mdi:toggle-switch',binary_sensor:'mdi:check-circle',sensor:'mdi:gauge',cover:'mdi:garage',person:'mdi:account',camera:'mdi:cctv'})[id.split('.')[0]] || 'mdi:information-outline');
+      const icon=esc(this._value('icon',e?.attributes.icon) || ({lock:'mdi:lock',light:'mdi:lightbulb',switch:'mdi:toggle-switch',binary_sensor:'mdi:check-circle',sensor:'mdi:gauge',cover:'mdi:garage',person:'mdi:account',camera:'mdi:cctv'})[id.split('.')[0]] || 'mdi:information-outline');
       const active=activeState(e,id);
-      const palette={green:dark?'#287D60':'#247155',orange:'#E99B30',red:'#D74F4F',blue:'#1E88E5',yellow:'#D6AD29',purple:'#9C70DA'};const chosen=this.config.color||this.config.icon_color||this.config.active_color;const color=palette[chosen]||chosen||(dark?'#287D60':'#247155');
+      const palette={green:dark?'#287D60':'#247155',orange:'#E99B30',red:'#D74F4F',blue:'#1E88E5',yellow:'#D6AD29',purple:'#9C70DA'};const chosen=this._value('color',this.config.icon_color||this.config.active_color);const color=palette[chosen]||chosen||(dark?'#287D60':'#247155');
       const accent=active||!id||chosen?color:(dark?'#AAB1AD':'#555F58');
       const key=JSON.stringify([id,title,state,icon,active,dark,this.config.layout,this.config.tap_action,this.config.active_color,safePicture,compact,vertical,this.config.hide_state,this.config.grid_options,this.config.primary,this.config.secondary,this.config.badge_icon,this.config.badge_color,this.config.color]);
       if (key===this._key) return;
@@ -74,7 +92,7 @@
           .state { margin-top:${compact?'2px':'5px'};font-size:12px;color:var(--fj-muted);font-weight:650;overflow-wrap:anywhere; }
         </style>
         <ha-card tabindex="0" role="button" aria-label="${title}: ${state}">
-          <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${id.startsWith('person.')?`<span class="fj-badge"><ha-icon icon="${esc(this.config.badge_icon||(s==='home'?'mdi:home':'mdi:map-marker'))}"></ha-icon></span>`:''}</div>
+          <div class="tile"><div class="symbol">${safePicture ? `<img class="avatar" src="${esc(safePicture)}" alt="">` : `<ha-icon icon="${icon}"></ha-icon>`}${id.startsWith('person.')?`<span class="fj-badge"><ha-icon icon="${esc(this._value('badge_icon',(s==='home'?'mdi:home':'mdi:map-marker')))}"></ha-icon></span>`:''}</div>
           <div class="details"><div class="name">${title}</div>${this.config.hide_state ? "" : `<div class="state">${state}</div>`}</div></div>
         </ha-card>`;
       const card=this.shadowRoot.querySelector('ha-card');
